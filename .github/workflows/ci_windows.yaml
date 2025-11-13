@@ -48,7 +48,6 @@ jobs:
           }
           where.exe ninja
           ninja --version
-
       # https://learn.microsoft.com/en-us/vcpkg/users/binarycaching#gha
       - name: Set variables for vcpkg
         uses: actions/github-script@v8
@@ -56,7 +55,6 @@ jobs:
           script: |
             core.exportVariable('ACTIONS_CACHE_URL', (process.env.ACTIONS_CACHE_URL || ''));
             core.exportVariable('ACTIONS_RUNTIME_TOKEN', (process.env.ACTIONS_RUNTIME_TOKEN || ''));
-
       - name: Install dependencies with vcpkg
         run: |
           # create our own triplet
@@ -84,7 +82,6 @@ jobs:
             --clean-after-build `
             --overlay-triplets="${{ env.vcpkg_path }}/triplets_overlay" `
             $packages
-
       - name: Install boost
         env:
           BOOST_MAJOR_VERSION: "1"
@@ -108,7 +105,6 @@ jobs:
             toolset=msvc `
             --stagedir=.\ `
             --with-headers
-
       - name: Install Qt
         uses: jurplel/install-qt-action@v4
         with:
@@ -143,7 +139,6 @@ jobs:
             -DVCPKG_TARGET_TRIPLET=${{ matrix.config.arch }}-windows-static-md-release
           cmake --build build
           cmake --install build
-
       - name: Build qBittorrent
         run: |
           $env:CXXFLAGS+="/DQT_FORCE_ASSERTS /WX"
@@ -163,7 +158,6 @@ jobs:
           cmake --build build --target qbt_update_translations
           cmake --build build
           cmake --build build --target check
-
       - name: Prepare build artifacts
         run: |
           mkdir upload
@@ -193,30 +187,22 @@ jobs:
           mkdir upload/qBittorrent/plugins/tls
           copy "${{ env.Qt_ROOT_DIR }}/plugins/tls/qschannelbackend.dll" upload/qBittorrent/plugins/tls
           # cmake additionals
-          mkdir upload/cmake
-          copy build/compile_commands.json upload/cmake
-          copy build/target_graph.dot upload/cmake
-          mkdir upload/cmake/libtorrent
-          copy ${{ env.libtorrent_path }}/build/compile_commands.json upload/cmake/libtorrent
-
+          #mkdir upload/cmake
+          #copy build/compile_commands.json upload/cmake
+          #copy build/target_graph.dot upload/cmake
+          #mkdir upload/cmake/libtorrent
+          #copy ${{ env.libtorrent_path }}/build/compile_commands.json upload/cmake/libtorrent
       - name: Upload build artifacts
         uses: actions/upload-artifact@v5
         with:
           name: qBittorrent-CI_Windows-${{ matrix.config.arch }}_libtorrent-${{ matrix.libt_version }}
           path: upload
 
-      - name: Install NSIS
-        uses: repolevedavaj/install-nsis@a55ed92772254d1e51d880f85ce9b5719f907801 # v1.1.0
-        with:
-          nsis-version: '3.11'
+      - name: Create ZIP
+        run: Compress-Archive -Path upload/qbittorrent -Destination dist/windows/qbittorrent_latest_portable.zip
 
-      - name: Create installer
-        run: |
-          7z x -o"dist/windows/" "dist/windows/NSISPlugins.zip"
-          makensis /DQBT_CPU_ARCH="${{ matrix.config.arch }}" /DQBT_DIST_DIR="../../upload/qBittorrent" /WX dist/windows/qbittorrent.nsi
-
-      - name: Upload installer
+      - name: Upload ZIP
         uses: actions/upload-artifact@v5
         with:
-          name: qBittorrent-CI_Windows-${{ matrix.config.arch }}_libtorrent-${{ matrix.libt_version }}-setup
-          path: dist/windows/qbittorrent_*_setup.exe
+          name: qBittorrent-${{ matrix.libt_version }}-Windows-${{ matrix.config.arch }}_portable
+          path: upload
